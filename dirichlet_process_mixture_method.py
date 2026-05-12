@@ -354,7 +354,6 @@ def run_new_analysis(new_path, base_matrix, base_clusters, device, max_iters, bu
 
     unique, counts = torch.unique(final_clusters, return_counts=True)
     print(f"{new_path.stem}_n_cluster: {len(unique)}")
-    print(f"{new_path.stem}_cluster_sizes: {counts.tolist()}")
 
     return reshaped_ms, data, final_clusters, aligned_res
 
