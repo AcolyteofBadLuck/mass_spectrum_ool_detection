@@ -117,15 +117,16 @@ def crp_gibbs(data, c_init, device, max_iters=1000):
             log_probs = torch.empty(k + 1, device=device)
 
             if k > 0:
-                unique_labels = torch.arange(k, device=device)
-                members = unique_labels.unsqueeze(1) == z.unsqueeze(0)
-
-                y_sum = (members.unsqueeze(2) * data.unsqueeze(0)).sum(1)
-                counts = torch.tensor(n_k, dtype=torch.float32, device=device)
-
-                log_prior_existing = torch.log(counts)
-                log_like_existing = log_dirichlet_multinomial_vec(data[i], r + y_sum)
-                log_probs[:k] = log_prior_existing + log_like_existing
+                    mask = z != -1
+                    
+                    y_sum = torch.zeros((k, data_dim), dtype=torch.float32, device=device)
+                    y_sum.index_add_(0, z[mask].long(), data[mask])
+                    
+                    counts = torch.tensor(n_k, dtype=torch.float32, device=device)
+                    
+                    log_prior_existing = torch.log(counts)
+                    log_like_existing = log_dirichlet_multinomial_vec(data[i], r + y_sum)
+                    log_probs[:k] = log_prior_existing + log_like_existing
 
             log_probs[k] = torch.log(alpha) + log_dirichlet_multinomial(data[i], r)
 
@@ -187,7 +188,9 @@ def align_labels_by_hungarian(res, burn_in):
         z[:, iter_idx] = map_vec[zt]
 
     aligned_res = z.to(orig_device)
-    final_clusters, _ = _relabel_to_compact(aligned_res[:, -1])
+    post_res = aligned_res[:, burn_in:]
+    final_clusters = torch.mode(post_res, dim=1).values
+    final_clusters, _ = _relabel_to_compact(final_clusters)
 
     return final_clusters, aligned_res
 
@@ -244,36 +247,76 @@ def visualize_umap_clusters(
     x = data_cpu.numpy()
     x = l2_normalize(x)
 
-    reducer = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, metric=metric, random_state=random_state)
+    reducer = umap.UMAP(
+        n_neighbors=n_neighbors,
+        min_dist=min_dist,
+        metric=metric,
+        random_state=random_state,
+    )
     embedding_all = reducer.fit_transform(x)
 
-    _, centroids, cluster_sizes = centroids_and_sizes(data_cpu, clusters_cpu, normalize_centroid=True)
+    _, centroids, cluster_sizes = centroids_and_sizes(
+        data_cpu,
+        clusters_cpu,
+        normalize_centroid=True,
+    )
     embedding_centroids = reducer.transform(centroids)
 
     plt.figure(figsize=figsize)
-    ax = sns.kdeplot(x=embedding_centroids[:, 0], y=embedding_centroids[:, 1], fill=True, thresh=0.05, levels=50)
+    ax = sns.kdeplot(
+        x=embedding_centroids[:, 0],
+        y=embedding_centroids[:, 1],
+        fill=True,
+        cmap="viridis",
+        bw_adjust=0.5,
+        levels=20,
+        thresh=0.05,
+        linewidths=0,
+    )
     fix_kde_pdf_artifacts(ax)
-
-    sizes = centroid_size * np.sqrt(cluster_sizes)
-    plt.scatter(embedding_centroids[:, 0], embedding_centroids[:, 1], s=sizes, edgecolors="k", linewidths=0.7)
-
-    if n_new is not None and n_new > 0:
-        plt.scatter(
-            embedding_all[:n_new, 0],
-            embedding_all[:n_new, 1],
-            s=new_point_size,
-            marker="x",
-            linewidths=1.3,
-            label="new data",
-        )
-        plt.legend(frameon=True)
-
-    plt.xlabel("UMAP 1")
-    plt.ylabel("UMAP 2")
+    plt.xlabel("UMAP-1")
+    plt.ylabel("UMAP-2")
     plt.tight_layout()
     plt.show()
 
-    return embedding_all, embedding_centroids
+    idx = np.argsort(cluster_sizes)
+
+    plt.figure(figsize=figsize)
+    sc = plt.scatter(
+        embedding_centroids[idx, 0],
+        embedding_centroids[idx, 1],
+        s=centroid_size,
+        c=np.log1p(cluster_sizes[idx]),
+        cmap="plasma",
+        alpha=0.8,
+        edgecolors="none",
+        label="Cluster centroids",
+    )
+
+    if n_new is not None and n_new > 0:
+        embedding_new = embedding_all[:n_new]
+        plt.scatter(
+            embedding_new[:, 0],
+            embedding_new[:, 1],
+            s=new_point_size,
+            c="red",
+            marker="x",
+            alpha=0.9,
+            label=f"Newly added spectra (n={n_new})",
+        )
+        plt.legend(loc="best", frameon=True)
+
+    plt.xlabel("UMAP-1")
+    plt.ylabel("UMAP-2")
+    plt.colorbar(sc, label="log(1+cluster size)")
+    plt.tight_layout()
+    plt.show()
+
+    return {
+        "embedding_all": embedding_all,
+        "embedding_centroids": embedding_centroids,
+        "cluster_sizes": cluster_sizes,
+    }
 
 
 def run_base_analysis(base_path, device, max_iters, burn_in):
@@ -290,7 +333,6 @@ def run_base_analysis(base_path, device, max_iters, burn_in):
 
     unique, counts = torch.unique(final_clusters, return_counts=True)
     print(f"base_n_cluster: {len(unique)}")
-    print(f"base_cluster_sizes: {counts.tolist()}")
 
     return reshaped_ms, data, final_clusters, aligned_res
 
