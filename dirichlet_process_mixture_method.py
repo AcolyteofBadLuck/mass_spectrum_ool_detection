@@ -115,16 +115,16 @@ def crp_gibbs(data, c_init, device, max_iters=1000):
             log_probs = torch.empty(k + 1, device=device)
 
             if k > 0:
-                    mask = z != -1
-                    
-                    y_sum = torch.zeros((k, data_dim), dtype=torch.float32, device=device)
-                    y_sum.index_add_(0, z[mask].long(), data[mask])
-                    
-                    counts = torch.tensor(n_k, dtype=torch.float32, device=device)
-                    
-                    log_prior_existing = torch.log(counts)
-                    log_like_existing = log_dirichlet_multinomial_vec(data[i], r + y_sum)
-                    log_probs[:k] = log_prior_existing + log_like_existing
+                mask = z != -1
+                
+                y_sum = torch.zeros((k, data_dim), dtype=torch.float32, device=device)
+                y_sum.index_add_(0, z[mask].long(), data[mask])
+                
+                counts = torch.tensor(n_k, dtype=torch.float32, device=device)
+                
+                log_prior_existing = torch.log(counts)
+                log_like_existing = log_dirichlet_multinomial_vec(data[i], r + y_sum)
+                log_probs[:k] = log_prior_existing + log_like_existing
 
             log_probs[k] = torch.log(alpha) + log_dirichlet_multinomial(data[i], r)
 
