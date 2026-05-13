@@ -12,8 +12,6 @@ from scipy.optimize import linear_sum_assignment
 from torch.special import gammaln, polygamma, psi
 from tqdm import trange
 
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-
 
 def load_spectrum_matrix(path, device="cuda", reference_dim=None):
     ms = pd.read_excel(path)
