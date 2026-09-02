@@ -436,7 +436,25 @@ Potential OOL interpretation should be based on additional validation and domain
 
 ## Related Publication
 
-Publication information for the associated study will be added when it becomes publicly available.
+This repository accompanies the following peer-reviewed article:
+
+Minsu Son, Hyoju Kim, Hyungjun Kim, Youngho Jin, and Jaeoh Kim (2026). [Reliable Identification and Out-of-Library Detection in Mass Spectra](https://doi.org/10.1002/cem.70174). *Journal of Chemometrics*, **40**(8), e70174. https://doi.org/10.1002/cem.70174
+
+If you use this code in your research, please cite:
+
+```bibtex
+@article{son2026reliable,
+  author  = {Son, Minsu and Kim, Hyoju and Kim, Hyungjun and Jin, Youngho and Kim, Jaeoh},
+  title   = {Reliable Identification and Out-of-Library Detection in Mass Spectra},
+  journal = {Journal of Chemometrics},
+  year    = {2026},
+  volume  = {40},
+  number  = {8},
+  pages   = {e70174},
+  doi     = {10.1002/cem.70174},
+  url     = {https://doi.org/10.1002/cem.70174}
+}
+```
 
 ## License
 
